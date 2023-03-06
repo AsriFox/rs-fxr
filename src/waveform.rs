@@ -1,233 +1,374 @@
-use rand::{prelude::*, distributions::{DistIter, Uniform}, rngs::OsRng};
+use crate::sound::Sound;
+use rand::{
+    distributions::{DistIter, Uniform},
+    prelude::*,
+    rngs::OsRng,
+};
+use std::f64::consts::PI;
 
-pub enum Waveform<I: Iterator<Item = f64>> {
-    Sine { phase: I },
-    Triangle { phase: I },
-    Sawtooth { phase: I },
-    Tangent { 
-        phase: I,
-        cutoff: f64,
-    },
-    Breaker { phase: I },
-    Square { 
-        phase: I, 
-        square_duty: f64,
-    },
-    WhiteNoise { // interpolated
-        rng: DistIter<Uniform<f64>, OsRng, f64>,
-        phase: I, 
-        prev_phase: f64,
-        prev_random: f64,
-        curr_random: f64,
-        // interpolate: bool,
-    },
-    PinkNoise { // interpolated
-        rng: DistIter<Uniform<f64>, OsRng, f64>,
-        phase: I, 
-        prev_phase: f64,
-        prev_random: f64,
-        curr_random: f64,
-        b: [f64; 7],
-        // interpolate: bool,
-    },
-    BrownNoise { // interpolated
-        rng: DistIter<Uniform<f64>, OsRng, f64>,
-        phase: I, 
-        prev_phase: f64,
-        prev_random: f64,
-        curr_random: f64,
-        // interpolate: bool,
-    },
+pub struct Sine<S: Sound> {
+    phase: S,
+}
+impl<S: Sound> Sine<S> {
+    pub fn new(phase: S) -> Self {
+        Self { phase }
+    }
+}
+impl<S: Sound> Sound for Sine<S> {
+    fn next(&mut self) -> Option<f64> {
+        Some((self.phase.next()? * PI).sin())
+    }
+    fn reset(&mut self) {
+        self.phase.reset();
+    }
+    fn duration(&self) -> f64 {
+        self.phase.duration()
+    }
 }
 
-impl<I: Iterator<Item = f64>> Iterator for Waveform<I> {
-    type Item = f64;
-    fn next(&mut self) -> Option<Self::Item> {
-        use std::f64::consts::PI;
-        Some(match self {
-            Self::Sine { phase } => { 
-                (phase.next()? * PI).sin()
-            }
-            Self::Tangent { phase, cutoff } => {
-                ((phase.next()? * PI).tan() / *cutoff).clamp(-1., 1.)
-            }
-            Self::Triangle { phase } => {
-                let v = phase.next()?.fract();
-                if v < 0.25 { 4. * v }
-                else if v < 0.75 { 2. - 4. * v }
-                else { -4. + 4. * v }
-            }
-            Self::Sawtooth { phase } => {
-                (phase.next()? * 2.).fract() * 2. - 1.
-            }
-            Self::Breaker { phase } => {
-                const BREAKER_OFFSET: f64 = 0.86602540378443864676372317075294; // f64::sqrt(0.75);
-                let v = (phase.next()? + BREAKER_OFFSET).fract();
-                -1. + 2. * (1. - 2. * v * v).abs()
-            }
-            Self::Square { phase, square_duty } => {
-                let v = phase.next()?.fract();
-                if v < *square_duty { 1. } else { -1. }
-            }
-            Self::WhiteNoise { 
-                rng, 
-                phase, 
-                prev_phase, 
-                prev_random, 
-                curr_random ,
-            } => {
-                let p = (phase.next()? * 2.).fract();
-                if p < *prev_phase {
-                    *prev_random = *curr_random;
-                    *curr_random = rng.next()?;
-                }
-                *prev_phase = p;
-                lerp(*prev_random, *curr_random, p)
-            }
-            Self::PinkNoise { 
-                rng, 
-                phase,
-                prev_phase, 
-                prev_random, 
-                curr_random ,
-                b,
-            } => {
-                let p = (phase.next()? * 2.).fract();
-                if p < *prev_phase {
-                    *prev_random = *curr_random;
-                    let white = rng.next()?;
-                    b[0] = 0.99886 * b[0] + white * 0.0555179;
-                    b[1] = 0.99332 * b[1] + white * 0.0750759;
-                    b[2] = 0.96900 * b[2] + white * 0.1538520;
-                    b[3] = 0.86650 * b[3] + white * 0.3104856;
-                    b[4] = 0.55000 * b[4] + white * 0.5329522;
-                    b[5] = -0.7616 * b[5] + white * 0.0168980;
-                    *curr_random = (b[0] + b[1] + b[2] + b[3] + b[4] + b[5] + b[6] + white * 0.5362) / 7.;
-                    b[6] = white * 0.115926;
-                }
-                *prev_phase = p;
-                lerp(*prev_random, *curr_random, p)
-            }
-            Self::BrownNoise { 
-                rng, 
-                phase,
-                prev_phase, 
-                prev_random, 
-                curr_random ,
-            } => {
-                let p = (phase.next()? * 2.).fract();
-                if p < *prev_phase {
-                    *prev_random = *curr_random;
-                    *curr_random = (*curr_random + 0.1 * rng.next()?).clamp(-1., 1.);
-                }
-                *prev_phase = p;
-                lerp(*prev_random, *curr_random, p)
-            }
+pub struct Triangle<S: Sound> {
+    phase: S,
+}
+impl<S: Sound> Triangle<S> {
+    pub fn new(phase: S) -> Self {
+        Self { phase }
+    }
+}
+impl<S: Sound> Sound for Triangle<S> {
+    fn next(&mut self) -> Option<f64> {
+        let v = self.phase.next()?.fract();
+        Some(if v < 0.25 {
+            4. * v
+        } else if v < 0.75 {
+            2. - 4. * v
+        } else {
+            -4. + 4. * v
         })
     }
+    fn reset(&mut self) {
+        self.phase.reset();
+    }
+    fn duration(&self) -> f64 {
+        self.phase.duration()
+    }
 }
 
-fn lerp(prev: f64, curr: f64, p: f64) -> f64 {
-    (1. - p) * prev + p * curr
+pub struct Sawtooth<S: Sound> {
+    phase: S,
+}
+impl<S: Sound> Sawtooth<S> {
+    pub fn new(phase: S) -> Self {
+        Self { phase }
+    }
+}
+impl<S: Sound> Sound for Sawtooth<S> {
+    fn next(&mut self) -> Option<f64> {
+        Some((self.phase.next()? * 2.).fract() * 2. - 1.)
+    }
+    fn reset(&mut self) {
+        self.phase.reset();
+    }
+    fn duration(&self) -> f64 {
+        self.phase.duration()
+    }
 }
 
-impl<I: Iterator<Item = f64>> Waveform<I> {
-    pub fn new_sine(phase: I) -> Self {
-        Self::Sine { phase }
+pub struct Breaker<S: Sound> {
+    phase: S,
+}
+impl<S: Sound> Breaker<S> {
+    pub fn new(phase: S) -> Self {
+        Self { phase }
     }
-    
-    pub fn new_triangle(phase: I) -> Self {
-        Self::Triangle { phase }
+}
+impl<S: Sound> Sound for Breaker<S> {
+    fn next(&mut self) -> Option<f64> {
+        const BREAKER_OFFSET: f64 = 0.86602540378443864676372317075294; // f64::sqrt(0.75);
+        let v = (self.phase.next()? + BREAKER_OFFSET).fract();
+        Some(-1. + 2. * (1. - 2. * v * v).abs())
     }
-    
-    pub fn new_sawtooth(phase: I) -> Self {
-        Self::Sawtooth { phase }
+    fn reset(&mut self) {
+        self.phase.reset();
     }
-    
-    pub fn new_breaker(phase: I) -> Self {
-        Self::Breaker { phase }
+    fn duration(&self) -> f64 {
+        self.phase.duration()
     }
-    
-    pub fn new_tangent(phase: I, cutoff: f64) -> Option<Self> {
-        if cutoff.is_subnormal() || cutoff <= 0. { None }
-        else { Some(Self::Tangent { phase, cutoff }) }
+}
+
+pub struct Tangent<S: Sound> {
+    phase: S,
+    cutoff: f64,
+}
+impl<S: Sound> Tangent<S> {
+    pub fn new(phase: S, cutoff: f64) -> Option<Self> {
+        if !cutoff.is_normal() || cutoff <= 0. {
+            None
+        } else {
+            Some(Self { phase, cutoff })
+        }
     }
-    
-    pub fn new_square(phase: I, square_duty: f64) -> Option<Self> {
-        if square_duty < 0. || square_duty > 1. { None }
-        else { Some(Self::Square { phase, square_duty }) }
+    pub fn default(phase: S) -> Self {
+        Self {
+            phase,
+            cutoff: 0.15,
+        }
     }
-    
-    pub fn new_white_noise(phase: I) -> Self {
-        Self::WhiteNoise { 
-            rng: OsRng.sample_iter(rand::distributions::Uniform::new(-1., 1.)), 
-            phase, 
-            prev_phase: 0., 
-            prev_random: 0., 
+}
+impl<S: Sound> Sound for Tangent<S> {
+    fn next(&mut self) -> Option<f64> {
+        Some(((self.phase.next()? * PI).tan() / self.cutoff).clamp(-1., 1.))
+    }
+    fn reset(&mut self) {
+        self.phase.reset();
+    }
+    fn duration(&self) -> f64 {
+        self.phase.duration()
+    }
+}
+
+pub struct Square<S: Sound> {
+    phase: S,
+    square_duty: f64,
+}
+impl<S: Sound> Square<S> {
+    pub fn new(phase: S, square_duty: f64) -> Option<Self> {
+        if !square_duty.is_normal() || square_duty <= 0. || square_duty >= 1. {
+            None
+        } else {
+            Some(Self { phase, square_duty })
+        }
+    }
+    pub fn default(phase: S) -> Self {
+        Self {
+            phase,
+            square_duty: 0.5,
+        }
+    }
+}
+impl<S: Sound> Sound for Square<S> {
+    fn next(&mut self) -> Option<f64> {
+        let v = self.phase.next()?.fract();
+        Some(if v < self.square_duty { 1. } else { -1. })
+    }
+    fn reset(&mut self) {
+        self.phase.reset();
+    }
+    fn duration(&self) -> f64 {
+        self.phase.duration()
+    }
+}
+
+pub struct WhiteNoise<S: Sound> {
+    // interpolated
+    rng: DistIter<Uniform<f64>, OsRng, f64>,
+    phase: S,
+    prev_phase: f64,
+    prev_random: f64,
+    curr_random: f64,
+    // interpolate: bool,
+}
+impl<S: Sound> WhiteNoise<S> {
+    pub fn new(phase: S) -> Self {
+        Self {
+            rng: new_random(),
+            phase,
+            prev_phase: 0.,
+            prev_random: 0.,
             curr_random: 0.,
         }
     }
-    
-    pub fn new_pink_noise(phase: I) -> Self {
-        Self::PinkNoise { 
-            rng: OsRng.sample_iter(rand::distributions::Uniform::new(-1., 1.)), 
-            phase, 
-            prev_phase: 0., 
-            prev_random: 0., 
+}
+impl<S: Sound> Sound for WhiteNoise<S> {
+    fn next(&mut self) -> Option<f64> {
+        let p = (self.phase.next()? * 2.).fract();
+        if p < self.prev_phase {
+            self.prev_random = self.curr_random;
+            self.curr_random = self.rng.next()?;
+        }
+        self.prev_phase = p;
+        Some(lerp(self.prev_random, self.curr_random, p))
+    }
+    fn reset(&mut self) {
+        self.rng = new_random();
+        self.phase.reset();
+    }
+    fn duration(&self) -> f64 {
+        self.phase.duration()
+    }
+}
+
+pub struct PinkNoise<S: Sound> {
+    // interpolated
+    rng: DistIter<Uniform<f64>, OsRng, f64>,
+    phase: S,
+    prev_phase: f64,
+    prev_random: f64,
+    curr_random: f64,
+    b: [f64; 7],
+    // interpolate: bool,
+}
+impl<S: Sound> PinkNoise<S> {
+    pub fn new(phase: S) -> Self {
+        Self {
+            rng: new_random(),
+            phase,
+            prev_phase: 0.,
+            prev_random: 0.,
             curr_random: 0.,
             b: [0.; 7],
         }
     }
-    
-    pub fn new_brown_noise(phase: I) -> Self {
-        Self::BrownNoise { 
-            rng: OsRng.sample_iter(rand::distributions::Uniform::new(-1., 1.)), 
-            phase, 
-            prev_phase: 0., 
-            prev_random: 0., 
+}
+impl<S: Sound> Sound for PinkNoise<S> {
+    fn next(&mut self) -> Option<f64> {
+        let p = (self.phase.next()? * 2.).fract();
+        if p < self.prev_phase {
+            self.prev_random = self.curr_random;
+            let white = self.rng.next()?;
+            self.b[0] = 0.99886 * self.b[0] + white * 0.0555179;
+            self.b[1] = 0.99332 * self.b[1] + white * 0.0750759;
+            self.b[2] = 0.96900 * self.b[2] + white * 0.1538520;
+            self.b[3] = 0.86650 * self.b[3] + white * 0.3104856;
+            self.b[4] = 0.55000 * self.b[4] + white * 0.5329522;
+            self.b[5] = -0.7616 * self.b[5] + white * 0.0168980;
+            self.curr_random = (self.b[0]
+                + self.b[1]
+                + self.b[2]
+                + self.b[3]
+                + self.b[4]
+                + self.b[5]
+                + self.b[6]
+                + white * 0.5362)
+                / 7.;
+            self.b[6] = white * 0.115926;
+        }
+        self.prev_phase = p;
+        Some(lerp(self.prev_random, self.curr_random, p))
+    }
+    fn reset(&mut self) {
+        self.rng = new_random();
+        self.phase.reset();
+    }
+    fn duration(&self) -> f64 {
+        self.phase.duration()
+    }
+}
+
+pub struct BrownNoise<S: Sound> {
+    // interpolated
+    rng: DistIter<Uniform<f64>, OsRng, f64>,
+    phase: S,
+    prev_phase: f64,
+    prev_random: f64,
+    curr_random: f64,
+    rolloff: f64,
+    // interpolate: bool,
+}
+impl<S: Sound> BrownNoise<S> {
+    pub fn new(phase: S, rolloff: f64) -> Option<Self> {
+        if !rolloff.is_normal() || rolloff <= 0. || rolloff >= 1. {
+            None
+        } else {
+            Some(Self {
+                rng: OsRng.sample_iter(Uniform::new(-1., 1.)),
+                phase,
+                prev_phase: 0.,
+                prev_random: 0.,
+                curr_random: 0.,
+                rolloff,
+            })
+        }
+    }
+    pub fn default(phase: S) -> Self {
+        Self {
+            rng: new_random(),
+            phase,
+            prev_phase: 0.,
+            prev_random: 0.,
             curr_random: 0.,
+            rolloff: 0.1,
         }
     }
 }
-
-pub trait IntoWaveform<I: Iterator<Item = f64>> {
-    fn sine(self) -> Waveform<I>;
-    fn triangle(self) -> Waveform<I>;
-    fn sawtooth(self) -> Waveform<I>;
-    fn breaker(self) -> Waveform<I>;
-    fn tangent(self, cutoff: f64) -> Option<Waveform<I>>;
-    fn square(self, square_duty: f64) -> Option<Waveform<I>>;
-    fn white_noise(self) -> Waveform<I>;
-    fn pink_noise(self) -> Waveform<I>;
-    fn brown_noise(self) -> Waveform<I>;
+impl<S: Sound> Sound for BrownNoise<S> {
+    fn next(&mut self) -> Option<f64> {
+        let p = (self.phase.next()? * 2.).fract();
+        if p < self.prev_phase {
+            self.prev_random = self.curr_random;
+            self.curr_random = (self.curr_random + self.rolloff * self.rng.next()?).clamp(-1., 1.);
+        }
+        self.prev_phase = p;
+        Some(lerp(self.prev_random, self.curr_random, p))
+    }
+    fn reset(&mut self) {
+        self.rng = new_random();
+        self.phase.reset();
+    }
+    fn duration(&self) -> f64 {
+        self.phase.duration()
+    }
 }
 
-impl<I: Iterator<Item = f64>> IntoWaveform<I> for I {
-    fn sine(self) -> Waveform<I> {
-        Waveform::new_sine(self)
+#[inline]
+fn new_random() -> DistIter<Uniform<f64>, OsRng, f64> {
+    OsRng.sample_iter(rand::distributions::Uniform::new(-1., 1.))
+}
+
+#[inline]
+fn lerp(prev: f64, curr: f64, p: f64) -> f64 {
+    (1. - p) * prev + p * curr
+}
+
+pub trait IntoWaveform<S: Sound> {
+    fn sine(self) -> Sine<S>;
+    fn triangle(self) -> Triangle<S>;
+    fn sawtooth(self) -> Sawtooth<S>;
+    fn square(self) -> Square<S>;
+    fn tangent(self) -> Tangent<S>;
+    fn breaker(self) -> Breaker<S>;
+    fn white_noise(self) -> WhiteNoise<S>;
+    fn pink_noise(self) -> PinkNoise<S>;
+    fn brown_noise(self) -> BrownNoise<S>;
+    fn tangent_custom(self, cutoff: f64) -> Option<Tangent<S>>;
+    fn square_custom(self, square_duty: f64) -> Option<Square<S>>;
+    fn brown_noise_custom(self, rolloff: f64) -> Option<BrownNoise<S>>;
+}
+
+impl<S: Sound> IntoWaveform<S> for S {
+    fn sine(self) -> Sine<S> {
+        Sine::new(self)
     }
-    fn triangle(self) -> Waveform<I> {
-        Waveform::new_triangle(self)
+    fn triangle(self) -> Triangle<S> {
+        Triangle::new(self)
     }
-    fn sawtooth(self) -> Waveform<I> {
-        Waveform::new_sawtooth(self)
+    fn sawtooth(self) -> Sawtooth<S> {
+        Sawtooth::new(self)
     }
-    fn breaker(self) -> Waveform<I> {
-        Waveform::new_breaker(self)
+    fn square(self) -> Square<S> {
+        Square::default(self)
     }
-    fn tangent(self, cutoff: f64) -> Option<Waveform<I>> {
-        Waveform::new_tangent(self, cutoff)
+    fn tangent(self) -> Tangent<S> {
+        Tangent::default(self)
     }
-    fn square(self, square_duty: f64) -> Option<Waveform<I>> {
-        Waveform::new_square(self, square_duty)
+    fn breaker(self) -> Breaker<S> {
+        Breaker::new(self)
     }
-    fn white_noise(self) -> Waveform<I> {
-        Waveform::new_white_noise(self)
+    fn white_noise(self) -> WhiteNoise<S> {
+        WhiteNoise::new(self)
     }
-    fn pink_noise(self) -> Waveform<I> {
-        Waveform::new_pink_noise(self)
+    fn pink_noise(self) -> PinkNoise<S> {
+        PinkNoise::new(self)
     }
-    fn brown_noise(self) -> Waveform<I> {
-        Waveform::new_brown_noise(self)
+    fn brown_noise(self) -> BrownNoise<S> {
+        BrownNoise::default(self)
+    }
+    fn tangent_custom(self, cutoff: f64) -> Option<Tangent<S>> {
+        Tangent::new(self, cutoff)
+    }
+    fn square_custom(self, square_duty: f64) -> Option<Square<S>> {
+        Square::new(self, square_duty)
+    }
+    fn brown_noise_custom(self, rolloff: f64) -> Option<BrownNoise<S>> {
+        BrownNoise::new(self, rolloff)
     }
 }
