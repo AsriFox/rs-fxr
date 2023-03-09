@@ -1,24 +1,63 @@
-pub trait Sound: Send {
-    fn next(&mut self) -> Option<f64>;
+pub struct Sound<W, E>
+where
+    W: Proc,
+    E: Proc + Duration,
+{
+    t: f64,
+    dt: f64,
+    duration: f64,
+    waveform: W,
+    envelope: E,
+}
 
-    fn reset(&mut self);
+impl<W, E> Sound<W, E>
+where
+    W: Proc,
+    E: Proc + Duration,
+{
+    pub fn new(sample_rate: f64, waveform: W, envelope: E) -> Option<Self> {
+        if !sample_rate.is_normal() || sample_rate <= 0. {
+            None
+        } else {
+            Some(Self {
+                t: 0.,
+                dt: 1. / sample_rate,
+                duration: envelope.duration(),
+                waveform,
+                envelope,
+            })
+        }
+    }
 
-    fn duration(&self) -> f64;
+    pub fn duration(&self) -> f64 {
+        self.duration
+    }
+}
 
-    fn render(&mut self, sample_rate: f64) -> Option<Vec<f64>> {
-        if !self.duration().is_normal() || self.duration() <= 0. {
+// unsafe impl Send for Sound {}
+
+impl<W, E> Iterator for Sound<W, E>
+where
+    W: Proc,
+    E: Proc + Duration,
+{
+    type Item = f64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.t >= self.duration {
             return None;
         }
-        let len = (self.duration() * sample_rate) as usize;
-        let mut render = Vec::with_capacity(len);
-        for _ in 0..len {
-            if let Some(s) = self.next() {
-                render.push(s)
-            } else {
-                return None;
-                // render.push(0.)
-            }
-        }
-        Some(render)
+        let w = self.waveform.value(self.t);
+        let w = w * self.envelope.value(self.t);
+        self.t += self.dt;
+        Some(w)
     }
+}
+
+pub trait Proc {
+    fn value(&self, t: f64) -> f64;
+}
+
+pub trait Duration {
+    fn duration(&self) -> f64;
 }

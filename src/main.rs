@@ -1,10 +1,8 @@
 mod envelope;
-mod phase;
 mod sound;
 mod waveform;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use waveform::IntoWaveform;
 
 fn main() -> anyhow::Result<()> {
     let host = cpal::default_host();
@@ -13,29 +11,26 @@ fn main() -> anyhow::Result<()> {
         .expect("No output device found");
     let config = device.default_output_config().unwrap();
 
-    let wave = phase::Phase::with_freq(400., config.sample_rate().0 as f64)
-        .unwrap()
-        .sine();
-
     match config.sample_format() {
-        cpal::SampleFormat::I16 => run::<i16, _>(&device, &config.into(), wave),
-        cpal::SampleFormat::U16 => run::<u16, _>(&device, &config.into(), wave),
-        cpal::SampleFormat::F32 => run::<f32, _>(&device, &config.into(), wave),
+        cpal::SampleFormat::I16 => run::<i16>(&device, &config.into()),
+        cpal::SampleFormat::U16 => run::<u16>(&device, &config.into()),
+        cpal::SampleFormat::F32 => run::<f32>(&device, &config.into()),
     }
 }
 
-pub fn run<T, S: sound::Sound + 'static>(
-    device: &cpal::Device,
-    config: &cpal::StreamConfig,
-    mut wave: S,
-) -> Result<(), anyhow::Error>
+pub fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyhow::Error>
 where
     T: cpal::Sample,
 {
-    // let sample_rate = config.sample_rate.0 as f32;
+    let sample_rate = config.sample_rate.0 as f64;
     let channels = config.channels as usize;
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
+
+    let waveform = waveform::Sine::new(400.).unwrap();
+    let envelope = envelope::Envelope::from_points(vec![(1., 1.), (2., 1.), (3., 0.)]).unwrap();
+    let mut wave = sound::Sound::new(sample_rate, waveform, envelope).unwrap();
+    let duration = wave.duration();
 
     let stream = device.build_output_stream(
         config,
@@ -52,7 +47,7 @@ where
     )?;
     stream.play()?;
 
-    std::thread::sleep(std::time::Duration::from_millis(1000));
+    std::thread::sleep(std::time::Duration::from_secs_f64(duration));
 
     Ok(())
 }
