@@ -37,8 +37,28 @@ where
             })
         }
     }
+}
 
-    pub fn duration(&self) -> f64 {
+impl<W, E> crate::traits::Synth for Noise<W, E>
+where
+    W: ProcState,
+    E: Proc + Duration,
+{
+}
+
+unsafe impl<W, E> Send for Noise<W, E>
+where
+    W: ProcState,
+    E: Proc + Duration,
+{
+}
+
+impl<W, E> Duration for Noise<W, E>
+where
+    W: ProcState,
+    E: Proc + Duration,
+{
+    fn duration(&self) -> f64 {
         self.duration
     }
 }

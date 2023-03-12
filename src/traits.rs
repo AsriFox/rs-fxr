@@ -9,3 +9,5 @@ pub trait ProcState {
 pub trait Duration {
     fn duration(&self) -> f64;
 }
+
+pub trait Synth: Iterator<Item = f64> + Duration + Send {}

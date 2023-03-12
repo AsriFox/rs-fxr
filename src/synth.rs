@@ -30,13 +30,31 @@ where
             })
         }
     }
+}
 
-    pub fn duration(&self) -> f64 {
+impl<W, E> crate::traits::Synth for Synth<W, E>
+where
+    W: Proc,
+    E: Proc + Duration,
+{
+}
+
+unsafe impl<W, E> Send for Synth<W, E>
+where
+    W: Proc,
+    E: Proc + Duration,
+{
+}
+
+impl<W, E> Duration for Synth<W, E>
+where
+    W: Proc,
+    E: Proc + Duration,
+{
+    fn duration(&self) -> f64 {
         self.duration
     }
 }
-
-// unsafe impl Send for Sound {}
 
 impl<W, E> Iterator for Synth<W, E>
 where

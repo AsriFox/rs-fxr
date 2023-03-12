@@ -2,6 +2,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use rs_fxr::{
     envelope::Envelope,
     noise::{Noise, PinkNoise},
+    traits::Duration,
 };
 
 fn main() -> anyhow::Result<()> {
