@@ -3,7 +3,12 @@ name = "rs-fxr"
 version = "0.1.0"
 edition = "2021"
 
+[[example]]
+name = "beep"
+
 [dependencies]
 rand = "0.8.5"
+
+[dev-dependencies]
 anyhow = "1.0.69"
 cpal = "0.14.2"
