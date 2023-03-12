@@ -37,6 +37,27 @@
             },
             "args": [],
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'json'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--features=json",
+                    "--example=json",
+                    "--package=rs-fxr"
+                ],
+                "filter": {
+                    "name": "json",
+                    "kind": "example"
+                }
+            },
+            "args": [
+                "target/Default 1.jfxr"
+            ],
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
