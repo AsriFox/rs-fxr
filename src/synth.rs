@@ -1,4 +1,6 @@
-pub struct Sound<W, E>
+use crate::traits::{Duration, Proc};
+
+pub struct Synth<W, E>
 where
     W: Proc,
     E: Proc + Duration,
@@ -10,7 +12,7 @@ where
     envelope: E,
 }
 
-impl<W, E> Sound<W, E>
+impl<W, E> Synth<W, E>
 where
     W: Proc,
     E: Proc + Duration,
@@ -36,7 +38,7 @@ where
 
 // unsafe impl Send for Sound {}
 
-impl<W, E> Iterator for Sound<W, E>
+impl<W, E> Iterator for Synth<W, E>
 where
     W: Proc,
     E: Proc + Duration,
@@ -52,12 +54,4 @@ where
         self.t += self.dt;
         Some(w)
     }
-}
-
-pub trait Proc {
-    fn value(&self, t: f64) -> f64;
-}
-
-pub trait Duration {
-    fn duration(&self) -> f64;
 }

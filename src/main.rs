@@ -1,5 +1,7 @@
 mod envelope;
-mod sound;
+mod noise;
+mod synth;
+mod traits;
 mod waveform;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -27,9 +29,11 @@ where
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
-    let waveform = waveform::Sine::new(400.).unwrap();
+    // let waveform = waveform::Sine::new(400.).unwrap();
+    let waveform = noise::WhiteNoise::new(200.).unwrap();
     let envelope = envelope::Envelope::from_points(vec![(1., 1.), (2., 1.), (3., 0.)]).unwrap();
-    let mut wave = sound::Sound::new(sample_rate, waveform, envelope).unwrap();
+    // let mut wave = sound::Sound::new(sample_rate, waveform, envelope).unwrap();
+    let mut wave = noise::Noise::new(sample_rate, waveform, envelope).unwrap();
     let duration = wave.duration();
 
     let stream = device.build_output_stream(

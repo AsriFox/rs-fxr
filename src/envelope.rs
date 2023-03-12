@@ -60,7 +60,7 @@ impl Envelope {
     }
 }
 
-impl crate::sound::Proc for Envelope {
+impl crate::traits::Proc for Envelope {
     fn value(&self, t: f64) -> f64 {
         let mut t = t;
         for s in self.segments.iter() {
@@ -73,7 +73,7 @@ impl crate::sound::Proc for Envelope {
     }
 }
 
-impl crate::sound::Duration for Envelope {
+impl crate::traits::Duration for Envelope {
     fn duration(&self) -> f64 {
         if self.segments.is_empty() {
             return 0.;

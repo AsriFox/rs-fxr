@@ -5,6 +5,5 @@ edition = "2021"
 
 [dependencies]
 rand = "0.8.5"
-anyhow = "*"
+anyhow = "1.0.69"
 cpal = "0.14.2"
-# rayon = "1.6.1"
