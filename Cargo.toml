@@ -19,6 +19,7 @@ serde_yaml = { version = "0.9", optional = true }
 [dev-dependencies]
 anyhow = "1.0.69"
 cpal = "0.14.2"
+hound = "3.5.0"
 
 [features]
 json = ["dep:serde", "dep:serde_json"]

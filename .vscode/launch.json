@@ -58,6 +58,24 @@
                 "target/Default 1.jfxr"
             ],
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'wav'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=wav",
+                    "--package=rs-fxr"
+                ],
+                "filter": {
+                    "name": "wav",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
