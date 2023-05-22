@@ -23,7 +23,7 @@ pub fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), 
 where
     T: cpal::Sample,
 {
-    let sample_rate = config.sample_rate.0 as f64;
+    let sample_rate = config.sample_rate.0;
     let channels = config.channels as usize;
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);

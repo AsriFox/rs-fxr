@@ -16,15 +16,16 @@ pub fn parse(jfxr: serde_json::Value) -> Result<Box<dyn crate::traits::Synth>, S
     }
 
     let sample_rate = match jfxr.get("sample_rate") {
-        Some(sample_rate) => match sample_rate.as_f64() {
+        Some(sample_rate) => match sample_rate.as_u64() {
             Some(sample_rate) => sample_rate,
             None => return Err(format!("'sample_rate' is not a number: {}", sample_rate)),
         },
-        None => 44100., // DEFAULT_SAMPLE_RATE
+        None => 44100, // DEFAULT_SAMPLE_RATE
     };
-    if sample_rate <= 0. {
+    if sample_rate <= 0 {
         return Err(format!("'sample_rate' must be positive: {}", sample_rate));
     }
+    let sample_rate = sample_rate as u32;
 
     let attack = match jfxr.get("attack") {
         Some(attack) => match attack.as_f64() {
