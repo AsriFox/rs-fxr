@@ -98,12 +98,13 @@ impl Description {
             self.sustain,
             self.decay,
             self.sustain_punch,
+            None,
         )
         .unwrap();
 
         match self.waveform {
             WaveformType::Sine => {
-                if let Some(waveform) = Sine::new(self.freq) {
+                if let Some(waveform) = Sine::new_simple(self.freq) {
                     let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
                     Ok(Box::new(synth))
                 } else {
@@ -111,7 +112,7 @@ impl Description {
                 }
             }
             WaveformType::Triangle => {
-                if let Some(waveform) = Triangle::new(self.freq) {
+                if let Some(waveform) = Triangle::new_simple(self.freq) {
                     let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
                     Ok(Box::new(synth))
                 } else {
@@ -119,7 +120,7 @@ impl Description {
                 }
             }
             WaveformType::Sawtooth => {
-                if let Some(waveform) = Sawtooth::new(self.freq) {
+                if let Some(waveform) = Sawtooth::new_simple(self.freq) {
                     let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
                     Ok(Box::new(synth))
                 } else {
@@ -127,7 +128,7 @@ impl Description {
                 }
             }
             WaveformType::Breaker => {
-                if let Some(waveform) = Breaker::new(self.freq) {
+                if let Some(waveform) = Breaker::new_simple(self.freq) {
                     let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
                     Ok(Box::new(synth))
                 } else {
@@ -135,7 +136,7 @@ impl Description {
                 }
             }
             WaveformType::Tangent => {
-                if let Some(waveform) = Tangent::default(self.freq) {
+                if let Some(waveform) = Tangent::default_simple(self.freq) {
                     let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
                     Ok(Box::new(synth))
                 } else {
@@ -143,7 +144,7 @@ impl Description {
                 }
             }
             WaveformType::Square(square_duty) => {
-                if let Some(waveform) = Square::new(self.freq, square_duty) {
+                if let Some(waveform) = Square::new_simple(self.freq, square_duty) {
                     let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
                     Ok(Box::new(synth))
                 } else {
@@ -151,7 +152,7 @@ impl Description {
                 }
             }
             WaveformType::WhiteNoise => {
-                if let Some(waveform) = WhiteNoise::new(self.freq) {
+                if let Some(waveform) = WhiteNoise::new_simple(self.freq) {
                     let synth = Noise::new(self.sample_rate, waveform, envelope).unwrap();
                     Ok(Box::new(synth))
                 } else {
@@ -159,7 +160,7 @@ impl Description {
                 }
             }
             WaveformType::PinkNoise => {
-                if let Some(waveform) = PinkNoise::new(self.freq) {
+                if let Some(waveform) = PinkNoise::new_simple(self.freq) {
                     let synth = Noise::new(self.sample_rate, waveform, envelope).unwrap();
                     Ok(Box::new(synth))
                 } else {
@@ -167,7 +168,7 @@ impl Description {
                 }
             }
             WaveformType::BrownNoise => {
-                if let Some(waveform) = BrownNoise::default(self.freq) {
+                if let Some(waveform) = BrownNoise::default_simple(self.freq) {
                     let synth = Noise::new(self.sample_rate, waveform, envelope).unwrap();
                     Ok(Box::new(synth))
                 } else {

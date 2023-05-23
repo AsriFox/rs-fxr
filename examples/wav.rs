@@ -10,8 +10,8 @@ fn main() -> anyhow::Result<()> {
     let sample_rate = 8000;
     let channels = 2;
 
-    let waveform = Square::default(200.).unwrap();
-    let envelope = Envelope::from_points(vec![(1., 1.), (2., 1.), (3., 0.)]).unwrap();
+    let waveform = Square::default_simple(200.).unwrap();
+    let envelope = Envelope::from_duration(1., 1., 1., 1., 0., None).unwrap();
     let wave = Synth::new(sample_rate, waveform, envelope).unwrap();
     let wave = wave.render_32::<f32>().low_pass(400.);
 

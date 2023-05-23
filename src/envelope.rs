@@ -14,7 +14,7 @@ impl Interval {
     }
 
     pub fn new(duration: f64, start: f64, end: f64) -> Option<Self> {
-        if !duration.is_normal()
+        if duration.is_nan()
             || duration <= 0.
             || !(start.is_normal() || start == 0.)
             || !(end.is_normal() || end == 0.)
@@ -32,12 +32,21 @@ impl Interval {
 
 pub struct Envelope {
     segments: Vec<Interval>,
+    vibrato: Option<(f64, f64)>,
 }
 
 impl Envelope {
-    pub fn from_points(points: Vec<(f64, f64)>) -> Option<Self> {
+    pub fn from_points(points: Vec<(f64, f64)>, vibrato: Option<(f64, f64)>) -> Option<Self> {
+        if let Some((depth, freq)) = vibrato {
+            if depth < 0. || depth > 1. || freq < 0. {
+                return None;
+            }
+        }
         if points.is_empty() {
-            return Some(Self { segments: vec![] });
+            return Some(Self {
+                segments: vec![],
+                vibrato,
+            });
         }
         let mut segments = Vec::with_capacity(points.len() - 1);
         let mut points = points.into_iter();
@@ -52,7 +61,7 @@ impl Envelope {
                 v_prev = v;
             }
         }
-        Some(Self { segments })
+        Some(Self { segments, vibrato })
     }
 
     pub fn from_duration(
@@ -61,7 +70,13 @@ impl Envelope {
         sustain: f64,
         decay: f64,
         sustain_punch: f64,
+        vibrato: Option<(f64, f64)>,
     ) -> Option<Self> {
+        if let Some((depth, freq)) = vibrato {
+            if depth < 0. || depth > 1. || freq < 0. {
+                return None;
+            }
+        }
         if amp <= 0. || attack < 0. || sustain < 0. || decay < 0. || attack + sustain + decay <= 0.
         {
             return None;
@@ -76,18 +91,22 @@ impl Envelope {
         if let Some(seg) = Interval::new(decay, amp, 0.) {
             segments.push(seg);
         }
-        Some(Self { segments })
+        Some(Self { segments, vibrato })
     }
 }
 
 impl crate::traits::Proc for Envelope {
     fn value(&self, t: f64) -> f64 {
-        let mut t = t;
+        let mut _t = t;
         for s in self.segments.iter() {
-            if t < s.duration {
-                return s.value(t);
+            if _t < s.duration {
+                if let Some((depth, freq)) = self.vibrato {
+                    return s.value(_t) * (1. - depth * (std::f64::consts::TAU * freq * t).cos());
+                } else {
+                    return s.value(_t);
+                }
             }
-            t -= s.duration;
+            _t -= s.duration;
         }
         0.
     }

@@ -1,8 +1,9 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use rs_fxr::{
     envelope::Envelope,
-    noise::{Noise, PinkNoise},
+    synth::Synth,
     traits::Duration,
+    waveform::Sine,
 };
 
 fn main() -> anyhow::Result<()> {
@@ -28,9 +29,11 @@ where
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
-    let waveform = PinkNoise::new(200.).unwrap();
-    let envelope = Envelope::from_points(vec![(1., 1.), (2., 1.), (3., 0.)]).unwrap();
-    let mut wave = Noise::new(sample_rate, waveform, envelope).unwrap();
+    let freq =
+        Envelope::from_points(vec![(0., 200.), (f64::INFINITY, 200.)], Some((0.001, 10.))).unwrap();
+    let waveform = Sine::new(freq);
+    let envelope = Envelope::from_duration(0.5, 1., 1., 1., 1., Some((0.2, 10.))).unwrap();
+    let mut wave = Synth::new(sample_rate, waveform, envelope).unwrap();
     let duration = wave.duration();
 
     let stream = device.build_output_stream(

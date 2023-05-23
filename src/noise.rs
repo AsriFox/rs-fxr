@@ -1,5 +1,6 @@
 use std::f64::consts::TAU;
 
+use crate::envelope::Envelope;
 use crate::lerp;
 use crate::traits::{Duration, Proc, ProcState};
 use rand::{
@@ -119,30 +120,34 @@ where
 pub struct WhiteNoise {
     // interpolated
     rng: DistIter<Uniform<f64>, OsRng, f64>,
-    freq: f64,
+    freq: Envelope,
     prev_phase: f64,
     prev_random: f64,
     curr_random: f64,
     // interpolate: bool,
 }
 impl WhiteNoise {
-    pub fn new(freq: f64) -> Option<Self> {
+    pub fn new(freq: Envelope) -> Self {
+        Self {
+            rng: new_random(),
+            freq,
+            prev_phase: 0.,
+            prev_random: 0.,
+            curr_random: 0.,
+        }
+    }
+    pub fn new_simple(freq: f64) -> Option<Self> {
         if !freq.is_normal() || freq <= 0. {
             None
         } else {
-            Some(Self {
-                rng: new_random(),
-                freq,
-                prev_phase: 0.,
-                prev_random: 0.,
-                curr_random: 0.,
-            })
+            let freq = Envelope::from_duration(freq, 0., f64::INFINITY, 0., 0., None).unwrap();
+            Some(Self::new(freq))
         }
     }
 }
 impl ProcState for WhiteNoise {
     fn next_value(&mut self, t: f64) -> f64 {
-        let p = (TAU * self.freq * t * 2.).fract();
+        let p = (TAU * self.freq.value(t) * t * 2.).fract();
         if p < self.prev_phase {
             self.prev_random = self.curr_random;
             self.curr_random = self.rng.next().unwrap_or(0.);
@@ -155,7 +160,7 @@ impl ProcState for WhiteNoise {
 pub struct PinkNoise {
     // interpolated
     rng: DistIter<Uniform<f64>, OsRng, f64>,
-    freq: f64,
+    freq: Envelope,
     prev_phase: f64,
     prev_random: f64,
     curr_random: f64,
@@ -163,24 +168,28 @@ pub struct PinkNoise {
     // interpolate: bool,
 }
 impl PinkNoise {
-    pub fn new(freq: f64) -> Option<Self> {
+    pub fn new(freq: Envelope) -> Self {
+        Self {
+            rng: new_random(),
+            freq,
+            prev_phase: 0.,
+            prev_random: 0.,
+            curr_random: 0.,
+            b: [0.; 7],
+        }
+    }
+    pub fn new_simple(freq: f64) -> Option<Self> {
         if !freq.is_normal() || freq <= 0. {
             None
         } else {
-            Some(Self {
-                rng: new_random(),
-                freq,
-                prev_phase: 0.,
-                prev_random: 0.,
-                curr_random: 0.,
-                b: [0.; 7],
-            })
+            let freq = Envelope::from_duration(freq, 0., f64::INFINITY, 0., 0., None).unwrap();
+            Some(Self::new(freq))
         }
     }
 }
 impl ProcState for PinkNoise {
     fn next_value(&mut self, t: f64) -> f64 {
-        let p = (TAU * self.freq * t * 2.).fract();
+        let p = (TAU * self.freq.value(t) * t * 2.).fract();
         if p < self.prev_phase {
             self.prev_random = self.curr_random;
             let white = self.rng.next().unwrap_or(0.);
@@ -209,7 +218,7 @@ impl ProcState for PinkNoise {
 pub struct BrownNoise {
     // interpolated
     rng: DistIter<Uniform<f64>, OsRng, f64>,
-    freq: f64,
+    freq: Envelope,
     prev_phase: f64,
     prev_random: f64,
     curr_random: f64,
@@ -217,11 +226,22 @@ pub struct BrownNoise {
     // interpolate: bool,
 }
 impl BrownNoise {
-    pub fn new(freq: f64, rolloff: f64) -> Option<Self> {
+    pub fn default(freq: Envelope) -> Self {
+        Self {
+            rng: new_random(),
+            freq,
+            prev_phase: 0.,
+            prev_random: 0.,
+            curr_random: 0.,
+            rolloff: 0.15,
+        }
+    }
+    pub fn new_simple(freq: f64, rolloff: f64) -> Option<Self> {
         if !freq.is_normal() || freq <= 0. || !rolloff.is_normal() || rolloff <= 0. || rolloff >= 1.
         {
             None
         } else {
+            let freq = Envelope::from_duration(freq, 0., f64::INFINITY, 0., 0., None).unwrap();
             Some(Self {
                 rng: new_random(),
                 freq,
@@ -232,13 +252,13 @@ impl BrownNoise {
             })
         }
     }
-    pub fn default(freq: f64) -> Option<Self> {
-        Self::new(freq, 0.1)
+    pub fn default_simple(freq: f64) -> Option<Self> {
+        Self::new_simple(freq, 0.1)
     }
 }
 impl ProcState for BrownNoise {
     fn next_value(&mut self, t: f64) -> f64 {
-        let p = (TAU * self.freq * t * 2.).fract();
+        let p = (TAU * self.freq.value(t) * t * 2.).fract();
         if p < self.prev_phase {
             self.prev_random = self.curr_random;
             let white = self.rng.next().unwrap_or(0.);
