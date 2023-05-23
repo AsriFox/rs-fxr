@@ -1,5 +1,6 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use rs_fxr::{
+    bit_crush::{BitCrush, BitCrushable},
     envelope::Envelope,
     synth::Synth,
     traits::Duration,
@@ -33,14 +34,16 @@ where
         Envelope::from_points(vec![(0., 200.), (f64::INFINITY, 200.)], Some((0.001, 10.))).unwrap();
     let waveform = Sine::new(freq);
     let envelope = Envelope::from_duration(0.5, 1., 1., 1., 1., Some((0.2, 10.))).unwrap();
-    let mut wave = Synth::new(sample_rate, waveform, envelope).unwrap();
+    let wave = Synth::new(sample_rate, waveform, envelope).unwrap();
+    let mut wave = wave.bit_crush(BitCrush::B2);
     let duration = wave.duration();
 
     let stream = device.build_output_stream(
         config,
         move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
             for frame in data.chunks_mut(channels) {
-                let value = wave.next().unwrap_or(0.) as f32;
+                let value = wave.next().unwrap_or(0);
+                let value = value as f32 / i16::MAX as f32;
                 let value: T = cpal::Sample::from::<f32>(&value);
                 for sample in frame.iter_mut() {
                     *sample = value;

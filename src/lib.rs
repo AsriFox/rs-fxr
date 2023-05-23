@@ -1,3 +1,4 @@
+pub mod bit_crush;
 pub mod envelope;
 pub mod noise;
 pub mod passband;
