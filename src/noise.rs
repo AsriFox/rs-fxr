@@ -1,5 +1,6 @@
 use std::f64::consts::TAU;
 
+use crate::lerp;
 use crate::traits::{Duration, Proc, ProcState};
 use rand::{
     distributions::{DistIter, Uniform},
@@ -251,9 +252,4 @@ impl ProcState for BrownNoise {
 #[inline]
 fn new_random() -> DistIter<Uniform<f64>, OsRng, f64> {
     OsRng.sample_iter(rand::distributions::Uniform::new(-1., 1.))
-}
-
-#[inline]
-fn lerp(prev: f64, curr: f64, p: f64) -> f64 {
-    (1. - p) * prev + p * curr
 }

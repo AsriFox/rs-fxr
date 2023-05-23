@@ -23,5 +23,6 @@ cpal = "0.14.2"
 hound = "3.5.0"
 
 [features]
-json = ["dep:serde", "dep:serde_json"]
-yaml = ["dep:serde", "dep:serde_yaml"]
+serde = ["dep:serde"]
+json = ["serde", "dep:serde_json"]
+yaml = ["serde", "dep:serde_yaml"]

@@ -30,8 +30,8 @@ fn main() {
         }
     };
 
-    let synth = match rs_fxr::json::parse(jfxr) {
-        Ok(synth) => synth,
+    let synth = match rs_fxr::serde::json::parse(jfxr) {
+        Ok(description) => description.build().unwrap(),
         Err(err) => {
             eprintln!("{}", err);
             return;
