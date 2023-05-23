@@ -55,7 +55,7 @@
                 }
             },
             "args": [
-                "target/Default 1.jfxr"
+                "target/random.jfxr"
             ],
             "cwd": "${workspaceFolder}"
         },

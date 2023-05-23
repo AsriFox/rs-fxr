@@ -9,6 +9,9 @@ pub mod waveform;
 #[cfg(feature = "serde")]
 pub mod serde;
 
+#[cfg(test)]
+mod tests;
+
 pub struct Samples<T> {
     pub sample_rate: u32,
     pub samples: Vec<T>,

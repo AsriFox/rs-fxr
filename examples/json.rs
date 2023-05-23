@@ -22,15 +22,7 @@ fn main() {
             return;
         }
     };
-    let jfxr: serde_json::Value = match serde_json::from_str(&s) {
-        Ok(json) => json,
-        Err(err) => {
-            eprintln!("{}", err);
-            return;
-        }
-    };
-
-    let synth = match rs_fxr::serde::json::parse(jfxr) {
+    let synth = match rs_fxr::serde::json::parse_str(s.as_str()) {
         Ok(description) => description.build().unwrap(),
         Err(err) => {
             eprintln!("{}", err);

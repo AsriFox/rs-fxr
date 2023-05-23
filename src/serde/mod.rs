@@ -1,6 +1,9 @@
 #[cfg(feature = "json")]
 pub mod json;
 
+use serde::{Deserialize, Serialize};
+use validator::{Validate, ValidationError, ValidationErrors};
+
 use crate::{
     envelope::Envelope,
     noise::{BrownNoise, Noise, PinkNoise, WhiteNoise},
@@ -8,92 +11,161 @@ use crate::{
     waveform::{Breaker, Sawtooth, Sine, Square, Tangent, Triangle},
 };
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "waveform")]
+#[serde(rename_all = "lowercase")]
 pub enum WaveformType {
     Sine,
     Triangle,
     Sawtooth,
     Breaker,
     Tangent,
-    Square(f64),
+    #[serde(rename_all = "camelCase")]
+    Square {
+        square_duty: f64,
+    },
     WhiteNoise,
     PinkNoise,
     BrownNoise,
 }
 
+impl Validate for WaveformType {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        match self {
+            WaveformType::Square { square_duty } => {
+                if *square_duty < 0. || *square_duty > 100. {
+                    let mut errors = ValidationErrors::new();
+                    errors.add(
+                        "square_duty",
+                        ValidationError::new(
+                            "'square_duty' must be a percentage value between 0 and 100",
+                        ),
+                    );
+                    Err(errors)
+                } else {
+                    Ok(())
+                }
+            }
+            _ => Ok(()),
+        }
+    }
+}
+
+impl WaveformType {
+    pub fn build(
+        self,
+        sample_rate: u32,
+        frequency: f64,
+        envelope: Envelope,
+    ) -> Box<dyn crate::traits::Synth> {
+        match self {
+            Self::Sine => {
+                let waveform = Sine::new_simple(frequency).unwrap();
+                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
+                Box::new(synth)
+            }
+            Self::Triangle => {
+                let waveform = Triangle::new_simple(frequency).unwrap();
+                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
+                Box::new(synth)
+            }
+            Self::Sawtooth => {
+                let waveform = Sawtooth::new_simple(frequency).unwrap();
+                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
+                Box::new(synth)
+            }
+            Self::Breaker => {
+                let waveform = Breaker::new_simple(frequency).unwrap();
+                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
+                Box::new(synth)
+            }
+            Self::Tangent => {
+                let waveform = Tangent::default_simple(frequency).unwrap();
+                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
+                Box::new(synth)
+            }
+            Self::Square { square_duty } => {
+                let waveform = Square::new_simple(frequency, square_duty).unwrap();
+                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
+                Box::new(synth)
+            }
+            Self::WhiteNoise => {
+                let waveform = WhiteNoise::new_simple(frequency).unwrap();
+                let synth = Noise::new(sample_rate, waveform, envelope).unwrap();
+                Box::new(synth)
+            }
+            Self::PinkNoise => {
+                let waveform = PinkNoise::new_simple(frequency).unwrap();
+                let synth = Noise::new(sample_rate, waveform, envelope).unwrap();
+                Box::new(synth)
+            }
+            Self::BrownNoise => {
+                let waveform = BrownNoise::default_simple(frequency).unwrap();
+                let synth = Noise::new(sample_rate, waveform, envelope).unwrap();
+                Box::new(synth)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct Description {
-    sample_rate: u32,
+    #[serde(rename = "_version")]
+    #[validate(custom(function = "Description::validate_fxr_version"))]
+    pub fxr_version: i32,
 
-    attack: f64,
-    sustain: f64,
-    decay: f64,
+    #[serde(rename = "_name")]
+    pub fxr_name: String,
 
-    sustain_punch: f64,
-    amp: f64,
+    #[serde(default = "Description::sample_rate_default")]
+    #[validate(range(min = 1))]
+    pub sample_rate: u32,
 
-    freq: f64,
-    waveform: WaveformType,
+    #[serde(default)]
+    #[validate(range(min = 0.))]
+    pub attack: f64,
+
+    #[serde(default)]
+    #[validate(range(min = 0.))]
+    pub sustain: f64,
+
+    #[serde(default)]
+    #[validate(range(min = 0.))]
+    pub decay: f64,
+
+    #[serde(default)]
+    #[validate(range(min = 0., max = 100.))]
+    pub sustain_punch: f64,
+
+    #[serde(default = "Description::amplification_default")]
+    #[validate(range(min = 0.))]
+    pub amplification: f64,
+
+    #[validate(range(min = 0.))]
+    pub frequency: f64,
+
+    #[serde(flatten)]
+    #[validate]
+    pub waveform: WaveformType,
 }
 
 impl Description {
-    pub fn errors(&self) -> Vec<String> {
-        let mut errors = vec![];
-        if self.sample_rate <= 0 {
-            errors.push(format!(
-                "'sample_rate' must be positive: {}",
-                self.sample_rate
-            ));
+    pub fn build(self) -> Result<Box<dyn crate::traits::Synth>, ValidationErrors> {
+        let mut errors = if let Err(errors) = self.validate() {
+            errors
+        } else {
+            ValidationErrors::new()
+        };
+        if self.attack + self.sustain + self.decay == 0. {
+            errors.add("duration", ValidationError::new("Sound duration must be positive; consider setting 'attack', 'sustain' and/or 'decay' values."));
         }
-        if self.attack < 0. {
-            errors.push(format!(
-                "'attack' duration must not be negative: {}",
-                self.attack
-            ));
-        }
-        if self.sustain < 0. {
-            errors.push(format!(
-                "'sustain' duration must not be negative: {}",
-                self.sustain
-            ));
-        }
-        if self.decay < 0. {
-            errors.push(format!(
-                "'decay' duration must not be negative: {}",
-                self.decay
-            ));
-        }
-        if self.attack + self.sustain + self.decay <= 0. {
-            errors.push(format!(
-                "Sound duration must be positive; assign 'attack', 'sustain' and/or 'decay' values"
-            ));
-        }
-        if self.amp < 0. {
-            errors.push(format!(
-                "'amplification' value must not be negative: {}",
-                self.amp
-            ));
-        }
-        if self.freq < 0. {
-            errors.push(format!("'frequency' must not be negative: {}", self.freq));
-        }
-        match self.waveform {
-            WaveformType::Square(square_duty) => {
-                if square_duty < 0. || square_duty > 1. {
-                    errors.push(format!("'square_duty' value must be between 0 and 1"));
-                }
-            }
-            _ => {}
-        }
-        return errors;
-    }
-
-    pub fn build(self) -> Result<Box<dyn crate::traits::Synth>, Vec<String>> {
-        let errors = self.errors();
         if !errors.is_empty() {
             return Err(errors);
         }
 
         let envelope = Envelope::from_duration(
-            self.amp,
+            self.amplification,
             self.attack,
             self.sustain,
             self.decay,
@@ -102,79 +174,30 @@ impl Description {
         )
         .unwrap();
 
-        match self.waveform {
-            WaveformType::Sine => {
-                if let Some(waveform) = Sine::new_simple(self.freq) {
-                    let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
-                    Ok(Box::new(synth))
-                } else {
-                    Err(vec!["Failed to create 'Sine' waveform".to_string()])
-                }
-            }
-            WaveformType::Triangle => {
-                if let Some(waveform) = Triangle::new_simple(self.freq) {
-                    let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
-                    Ok(Box::new(synth))
-                } else {
-                    Err(vec!["Failed to create 'Triangle' waveform".to_string()])
-                }
-            }
-            WaveformType::Sawtooth => {
-                if let Some(waveform) = Sawtooth::new_simple(self.freq) {
-                    let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
-                    Ok(Box::new(synth))
-                } else {
-                    Err(vec!["Failed to create 'Sawtooth' waveform".to_string()])
-                }
-            }
-            WaveformType::Breaker => {
-                if let Some(waveform) = Breaker::new_simple(self.freq) {
-                    let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
-                    Ok(Box::new(synth))
-                } else {
-                    Err(vec!["Failed to create 'Breaker' waveform".to_string()])
-                }
-            }
-            WaveformType::Tangent => {
-                if let Some(waveform) = Tangent::default_simple(self.freq) {
-                    let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
-                    Ok(Box::new(synth))
-                } else {
-                    Err(vec!["Failed to create 'Tangent' waveform".to_string()])
-                }
-            }
-            WaveformType::Square(square_duty) => {
-                if let Some(waveform) = Square::new_simple(self.freq, square_duty) {
-                    let synth = Synth::new(self.sample_rate, waveform, envelope).unwrap();
-                    Ok(Box::new(synth))
-                } else {
-                    Err(vec!["Failed to create 'Square' waveform".to_string()])
-                }
-            }
-            WaveformType::WhiteNoise => {
-                if let Some(waveform) = WhiteNoise::new_simple(self.freq) {
-                    let synth = Noise::new(self.sample_rate, waveform, envelope).unwrap();
-                    Ok(Box::new(synth))
-                } else {
-                    Err(vec!["Failed to create 'WhiteNoise' waveform".to_string()])
-                }
-            }
-            WaveformType::PinkNoise => {
-                if let Some(waveform) = PinkNoise::new_simple(self.freq) {
-                    let synth = Noise::new(self.sample_rate, waveform, envelope).unwrap();
-                    Ok(Box::new(synth))
-                } else {
-                    Err(vec!["Failed to create 'PinkNoise' waveform".to_string()])
-                }
-            }
-            WaveformType::BrownNoise => {
-                if let Some(waveform) = BrownNoise::default_simple(self.freq) {
-                    let synth = Noise::new(self.sample_rate, waveform, envelope).unwrap();
-                    Ok(Box::new(synth))
-                } else {
-                    Err(vec!["Failed to create 'BrownNoise' waveform".to_string()])
-                }
+        Ok(self
+            .waveform
+            .build(self.sample_rate, self.frequency, envelope))
+    }
+
+    #[inline]
+    fn validate_fxr_version(value: i32) -> Result<(), ValidationError> {
+        match value {
+            1 => Ok(()),
+            _ => {
+                let mut error = ValidationError::new("JFXR version mismatch");
+                error.add_param::<i32>(std::borrow::Cow::Borrowed("_version"), &value);
+                Err(error)
             }
         }
+    }
+
+    #[inline]
+    fn sample_rate_default() -> u32 {
+        44100
+    }
+
+    #[inline]
+    fn amplification_default() -> f64 {
+        100.
     }
 }
