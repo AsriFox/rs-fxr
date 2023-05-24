@@ -4,30 +4,7 @@ pub mod json;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError, ValidationErrors};
 
-use crate::{
-    envelope::Envelope,
-    noise::{BrownNoise, Noise, PinkNoise, WhiteNoise},
-    synth::Synth,
-    waveform::{Breaker, Sawtooth, Sine, Square, Tangent, Triangle},
-};
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "waveform")]
-#[serde(rename_all = "lowercase")]
-pub enum WaveformType {
-    Sine,
-    Triangle,
-    Sawtooth,
-    Breaker,
-    Tangent,
-    #[serde(rename_all = "camelCase")]
-    Square {
-        square_duty: f64,
-    },
-    WhiteNoise,
-    PinkNoise,
-    BrownNoise,
-}
+use crate::{envelope::Envelope, waveform::WaveformType};
 
 impl Validate for WaveformType {
     fn validate(&self) -> Result<(), ValidationErrors> {
@@ -51,63 +28,6 @@ impl Validate for WaveformType {
     }
 }
 
-impl WaveformType {
-    pub fn build(
-        self,
-        sample_rate: u32,
-        frequency: f64,
-        envelope: Envelope,
-    ) -> Box<dyn crate::traits::Synth> {
-        match self {
-            Self::Sine => {
-                let waveform = Sine::new_simple(frequency).unwrap();
-                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
-                Box::new(synth)
-            }
-            Self::Triangle => {
-                let waveform = Triangle::new_simple(frequency).unwrap();
-                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
-                Box::new(synth)
-            }
-            Self::Sawtooth => {
-                let waveform = Sawtooth::new_simple(frequency).unwrap();
-                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
-                Box::new(synth)
-            }
-            Self::Breaker => {
-                let waveform = Breaker::new_simple(frequency).unwrap();
-                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
-                Box::new(synth)
-            }
-            Self::Tangent => {
-                let waveform = Tangent::default_simple(frequency).unwrap();
-                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
-                Box::new(synth)
-            }
-            Self::Square { square_duty } => {
-                let waveform = Square::new_simple(frequency, square_duty).unwrap();
-                let synth = Synth::new(sample_rate, waveform, envelope).unwrap();
-                Box::new(synth)
-            }
-            Self::WhiteNoise => {
-                let waveform = WhiteNoise::new_simple(frequency).unwrap();
-                let synth = Noise::new(sample_rate, waveform, envelope).unwrap();
-                Box::new(synth)
-            }
-            Self::PinkNoise => {
-                let waveform = PinkNoise::new_simple(frequency).unwrap();
-                let synth = Noise::new(sample_rate, waveform, envelope).unwrap();
-                Box::new(synth)
-            }
-            Self::BrownNoise => {
-                let waveform = BrownNoise::default_simple(frequency).unwrap();
-                let synth = Noise::new(sample_rate, waveform, envelope).unwrap();
-                Box::new(synth)
-            }
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct Description {
@@ -124,26 +44,26 @@ pub struct Description {
 
     #[serde(default)]
     #[validate(range(min = 0.))]
-    pub attack: f64,
+    pub attack: f32,
 
     #[serde(default)]
     #[validate(range(min = 0.))]
-    pub sustain: f64,
+    pub sustain: f32,
 
     #[serde(default)]
     #[validate(range(min = 0.))]
-    pub decay: f64,
+    pub decay: f32,
 
     #[serde(default)]
     #[validate(range(min = 0., max = 100.))]
-    pub sustain_punch: f64,
+    pub sustain_punch: f32,
 
     #[serde(default = "Description::amplification_default")]
     #[validate(range(min = 0.))]
-    pub amplification: f64,
+    pub amplification: f32,
 
     #[validate(range(min = 0.))]
-    pub frequency: f64,
+    pub frequency: f32,
 
     #[serde(flatten)]
     #[validate]
@@ -174,9 +94,11 @@ impl Description {
         )
         .unwrap();
 
-        Ok(self
-            .waveform
-            .build(self.sample_rate, self.frequency, envelope))
+        let samples = crate::Clock::new(self.sample_rate);
+
+        let freq = Envelope::new_simple(f32::INFINITY, self.frequency).unwrap();
+
+        Ok(self.waveform.build(samples, freq))
     }
 
     #[inline]
@@ -197,7 +119,7 @@ impl Description {
     }
 
     #[inline]
-    fn amplification_default() -> f64 {
+    fn amplification_default() -> f32 {
         100.
     }
 }

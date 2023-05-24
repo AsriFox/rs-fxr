@@ -1,4 +1,4 @@
-use crate::traits::{Duration, Proc, Synth};
+use crate::traits::{Duration, Synth};
 
 pub enum BitCrush {
     B1,
@@ -62,57 +62,62 @@ impl BitCrush {
             BitCrush::B16 => unimplemented!(),
         }
     }
-}
 
-pub struct BitCrushedSound<'a> {
-    sound: Box<dyn Synth + 'a>,
-    bit_mask: BitCrush,
-}
-
-unsafe impl<'a> Send for BitCrushedSound<'a> {}
-
-impl<'a> Duration for BitCrushedSound<'a> {
-    fn duration(&self) -> f64 {
-        self.sound.duration()
-    }
-}
-
-impl<'a> Iterator for BitCrushedSound<'a> {
-    type Item = i16;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(sample) = self.sound.next() {
-            let sample = (f64::clamp(sample, -1., 1.) * i16::MAX as f64) as i16;
-            if let BitCrush::B16 = self.bit_mask {
-                Some(sample)
-            } else {
-                Some(if sample > 0 {
-                    sample & self.bit_mask.mask()
-                } else if sample < 0 {
-                    -(-sample & self.bit_mask.mask())
-                } else {
-                    0
-                })
-            }
-        } else {
-            None
+    pub fn apply<S>(self, sound: S) -> BitCrushedSound<S>
+    where
+        S: Synth,
+    {
+        BitCrushedSound {
+            sound,
+            bit_mask: self,
         }
     }
 }
 
-pub trait BitCrushable<'a> {
-    fn bit_crush(self, bit_mask: BitCrush) -> BitCrushedSound<'a>;
+pub struct BitCrushedSound<S>
+where
+    S: Synth,
+{
+    sound: S,
+    bit_mask: BitCrush,
 }
 
-impl<'a, W, E> BitCrushable<'a> for crate::synth::Synth<W, E>
+impl<S> Synth for BitCrushedSound<S> where S: Synth {}
+
+unsafe impl<S> Send for BitCrushedSound<S> where S: Synth {}
+
+impl<S> Duration for BitCrushedSound<S>
 where
-    W: Proc + 'a,
-    E: Proc + Duration + 'a,
+    S: Synth,
 {
-    fn bit_crush(self, bit_mask: BitCrush) -> BitCrushedSound<'a> {
-        BitCrushedSound {
-            sound: Box::new(self),
-            bit_mask,
+    fn duration(&self) -> f32 {
+        self.sound.duration()
+    }
+}
+
+impl<S> Iterator for BitCrushedSound<S>
+where
+    S: Synth,
+{
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(sample) = self.sound.next() {
+            let sample = (f32::clamp(sample, -1., 1.) * i16::MAX as f32) as i16;
+            if let BitCrush::B16 = self.bit_mask {
+                Some(sample as f32 / i16::MAX as f32)
+            } else {
+                let sample = if sample > 0 {
+                    sample & self.bit_mask.mask()
+                } else if sample < 0 {
+                    -(-sample & self.bit_mask.mask())
+                } else {
+                    return Some(0.);
+                };
+                Some(sample as f32 / i16::MAX as f32)
+            }
+        } else {
+            None
         }
     }
 }

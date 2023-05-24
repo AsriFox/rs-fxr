@@ -1,11 +1,11 @@
 pub struct Interval {
-    duration: f64,
-    start: f64,
-    end: f64,
+    duration: f32,
+    start: f32,
+    end: f32,
 }
 
 impl Interval {
-    pub fn value(&self, t: f64) -> f64 {
+    pub fn value(&self, t: f32) -> f32 {
         if t >= 0. && t <= self.duration {
             crate::lerp(self.start, self.end, t / self.duration)
         } else {
@@ -13,7 +13,7 @@ impl Interval {
         }
     }
 
-    pub fn new(duration: f64, start: f64, end: f64) -> Option<Self> {
+    pub fn new(duration: f32, start: f32, end: f32) -> Option<Self> {
         if duration.is_nan()
             || duration <= 0.
             || !(start.is_normal() || start == 0.)
@@ -32,11 +32,11 @@ impl Interval {
 
 pub struct Envelope {
     segments: Vec<Interval>,
-    vibrato: Option<(f64, f64)>,
+    vibrato: Option<(f32, f32)>,
 }
 
 impl Envelope {
-    pub fn from_points(points: Vec<(f64, f64)>, vibrato: Option<(f64, f64)>) -> Option<Self> {
+    pub fn from_points(points: Vec<(f32, f32)>, vibrato: Option<(f32, f32)>) -> Option<Self> {
         if let Some((depth, freq)) = vibrato {
             if depth < 0. || depth > 1. || freq < 0. {
                 return None;
@@ -65,12 +65,12 @@ impl Envelope {
     }
 
     pub fn from_duration(
-        amp: f64,
-        attack: f64,
-        sustain: f64,
-        decay: f64,
-        sustain_punch: f64,
-        vibrato: Option<(f64, f64)>,
+        amp: f32,
+        attack: f32,
+        sustain: f32,
+        decay: f32,
+        sustain_punch: f32,
+        vibrato: Option<(f32, f32)>,
     ) -> Option<Self> {
         if let Some((depth, freq)) = vibrato {
             if depth < 0. || depth > 1. || freq < 0. {
@@ -93,15 +93,23 @@ impl Envelope {
         }
         Some(Self { segments, vibrato })
     }
+
+    pub fn new_simple(duration: f32, value: f32) -> Option<Self> {
+        let interval = Interval::new(duration, value, value)?;
+        Some(Envelope {
+            segments: vec![interval],
+            vibrato: None,
+        })
+    }
 }
 
 impl crate::traits::Proc for Envelope {
-    fn value(&self, t: f64) -> f64 {
+    fn value(&self, t: f32) -> f32 {
         let mut _t = t;
         for s in self.segments.iter() {
             if _t < s.duration {
                 if let Some((depth, freq)) = self.vibrato {
-                    return s.value(_t) * (1. - depth * (std::f64::consts::TAU * freq * t).cos());
+                    return s.value(_t) * (1. - depth * (std::f32::consts::TAU * freq * t).cos());
                 } else {
                     return s.value(_t);
                 }
@@ -113,7 +121,7 @@ impl crate::traits::Proc for Envelope {
 }
 
 impl crate::traits::Duration for Envelope {
-    fn duration(&self) -> f64 {
+    fn duration(&self) -> f32 {
         if self.segments.is_empty() {
             return 0.;
         }

@@ -1,4 +1,5 @@
-use crate::serde::{Description, WaveformType};
+use crate::serde::Description;
+use crate::waveform::WaveformType;
 
 #[test]
 fn serde_json_serialize() {

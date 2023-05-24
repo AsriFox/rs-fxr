@@ -79,7 +79,7 @@ where
     )?;
     stream.play()?;
 
-    std::thread::sleep(std::time::Duration::from_secs_f64(duration));
+    std::thread::sleep(std::time::Duration::from_secs_f32(duration));
 
     Ok(())
 }

@@ -1,19 +1,23 @@
 use rs_fxr::{
-    envelope::Envelope,
-    // traits::Duration,
-    passband::Filterable,
-    synth::Synth,
-    waveform::Square,
+    envelope::Envelope, passband::Filterable, traits::Duration, waveform::Square, Clock, Samples,
 };
 
 fn main() -> anyhow::Result<()> {
     let sample_rate = 8000;
     let channels = 2;
 
-    let waveform = Square::default_simple(200.).unwrap();
+    let samples = Clock::new(sample_rate);
+    let freq = Envelope::new_simple(f32::INFINITY, 200.).unwrap();
+    let waveform = Square::default(samples, freq);
     let envelope = Envelope::from_duration(1., 1., 1., 1., 0., None).unwrap();
-    let wave = Synth::new(sample_rate, waveform, envelope).unwrap();
-    let wave = wave.render_32::<f32>().low_pass(400.);
+    let samples: Vec<f32> = waveform
+        .take((envelope.duration() * sample_rate as f32) as usize)
+        .collect();
+    let wave = Samples::<f32> {
+        sample_rate,
+        samples,
+    }
+    .low_pass(400.);
 
     let spec = hound::WavSpec {
         channels,
