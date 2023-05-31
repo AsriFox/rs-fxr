@@ -3,6 +3,9 @@ name = "rs-fxr"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib"]
+
 [[example]]
 name = "beep"
 
@@ -11,12 +14,14 @@ name = "json"
 required-features = ["json"]
 
 [dependencies]
+getrandom = { version = "0.2.9", features = ["js"] }
 rand = "0.8.5"
 realfft = "3.2.0"
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 serde_yaml = { version = "0.9", optional = true }
 validator = { version = "0.16", features = ["derive"], optional = true }
+wasm-bindgen = "0.2.86"
 
 [dev-dependencies]
 anyhow = "1.0.69"

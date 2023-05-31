@@ -4,6 +4,11 @@
 <head>
     <meta charset="utf-8">
     <title>rs-fxr</title>
+    <script type="module">
+        import init, { name } from './pkg/rs_fxr.js'
+        await init()
+        console.log(name())
+    </script>
 </head>
 
 <body>
