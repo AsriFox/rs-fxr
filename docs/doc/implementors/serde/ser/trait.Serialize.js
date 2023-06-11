@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"rs_fxr":[["impl <a class=\"trait\" href=\"https://docs.rs/serde/1.0.152/serde/ser/trait.Serialize.html\" title=\"trait serde::ser::Serialize\">Serialize</a> for <a class=\"struct\" href=\"rs_fxr/serde/struct.Description.html\" title=\"struct rs_fxr::serde::Description\">Description</a>"],["impl <a class=\"trait\" href=\"https://docs.rs/serde/1.0.152/serde/ser/trait.Serialize.html\" title=\"trait serde::ser::Serialize\">Serialize</a> for <a class=\"enum\" href=\"rs_fxr/serde/enum.WaveformType.html\" title=\"enum rs_fxr::serde::WaveformType\">WaveformType</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
